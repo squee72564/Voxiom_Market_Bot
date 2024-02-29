@@ -21,8 +21,8 @@ const get_market_items_json = async () => {
 }
 
 // This function is used to attach the average price information to each JSON object
-// representing the items in the market. We make a call to get_average_price() for each unqiue
-// item type within the market and the average for that item is returned and attached to the JSON
+// representing the items in the market. We make a call to get_average_price() for each 
+// item within the market and the average for that item is returned and attached to the JSON
 // for that item. We return all of the market items with the new average as a member in the JSON
 const attach_average_price_history = async (market_items) => {
     let edited_items = [];
@@ -40,7 +40,7 @@ const attach_average_price_history = async (market_items) => {
             edited_items.push(item);
         }
 
-        await delay(10);
+        await delay(25);
     }
 
     return edited_items;
@@ -118,46 +118,55 @@ const filter_invalid_items_by_price = (market_items) => {
     }
 
     return valid_items;
-
 }
 
 const consolidate_items_by_seller = (market_items) => {
     let market_items_by_seller = { };
 
     for (const item of market_items) {
-        const {seller_name, ...item_without_seller} = item;
+        const {seller_name, item_type, price, average_price, ...item_without_seller} = item;
+
+        const item_info = {
+            item_type: item_type,
+            price: price,
+            average_price: average_price,
+        };
 
         if (!(seller_name in market_items_by_seller)) {
             market_items_by_seller[`${seller_name}`] = [];
         }
 
-        market_items_by_seller[`${seller_name}`].push(item_without_seller);
+        market_items_by_seller[`${seller_name}`].push(item_info);
     }
     
     return market_items_by_seller;
 }
 
 
+const run_bot = () => {
+    get_market_items_json()
+        .then( (initial_items) => {
+            console.log(`Initial market item count: ${initial_items.length}`);
+            return attach_average_price_history(initial_items);
+        })
+        .then( (updated_items) => {
+            return filter_duplicate_items(updated_items);
+        })
+        .then( (unique_items) => {
+            console.log(`Market unique item count: ${unique_items.length}`);
+            return filter_invalid_items_by_price(unique_items);
+        })
+        .then( (valid_items) => {
+            console.log(`Market valid item count: ${valid_items.length}`);
+            return consolidate_items_by_seller(valid_items);
+        })
+        .then( (items_by_seller) => {
+            console.log(items_by_seller);
+        })
+        .catch( (error) => {
+            console.log(`\t${error.message}`);
+        });
+}
 
-get_market_items_json()
-    .then( (initial_items) => {
-        console.log(`Initial market item count: ${initial_items.length}`);
-        return attach_average_price_history(initial_items);
-    })
-    .then( (updated_items) => {
-        return filter_duplicate_items(updated_items);
-    })
-    .then( (unique_items) => {
-        console.log(`Market unique item count: ${unique_items.length}`);
-        return filter_invalid_items_by_price(unique_items);
-    })
-    .then( (valid_items) => {
-        console.log(`Market valid item count: ${valid_items.length}`);
-        return consolidate_items_by_seller(valid_items);
-    })
-    .then( (items_by_seller) => {
-        console.log(items_by_seller);
-    })
-    .catch( (error) => {
-        console.log(`\t${error.message}`);
-    });
+run_bot();
+setInterval(() => run_bot(), 1200000);
